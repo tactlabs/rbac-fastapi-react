@@ -258,3 +258,39 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
         full_name=current_user["full_name"],
         role=current_user["role"]
     )
+
+# Add this new endpoint after the other endpoints
+@app.post("/register/first-admin", response_model=UserResponse)
+async def register_first_admin(user: UserCreate):
+    print("Attempting to create first admin user")
+    # Check if an admin already exists
+    admin_exists = any(user_data.get('role') == Role.ADMIN for user_data in users_db.values())
+    
+    if admin_exists:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin already exists - cannot create first admin"
+        )
+    
+    # Hash the password
+    hashed_password = pwd_context.hash(user.password)
+    
+    # Create admin user
+    user_data = {
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "hashed_password": hashed_password,
+        "role": Role.ADMIN  # Set role as admin
+    }
+    
+    # Store user in database
+    users_db[user.username] = user_data
+    save_users_to_file()
+    
+    return UserResponse(
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        role=user_data["role"]
+    )
