@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Dashboard.css';
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [greeting, setGreeting] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const hours = new Date().getHours();
@@ -25,6 +27,15 @@ const Dashboard = () => {
     return <div>Loading user information...</div>;
   }
 
+  // Function to get a user-friendly role name with capitalization
+  const getRoleName = (role) => {
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  };
+
+  const goToAdminPanel = () => {
+    navigate('/admin/users');
+  };
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
@@ -39,6 +50,7 @@ const Dashboard = () => {
             <p><strong>Username:</strong> {user.username}</p>
             <p><strong>Email:</strong> {user.email}</p>
             {user.full_name && <p><strong>Full Name:</strong> {user.full_name}</p>}
+            <p><strong>Role:</strong> <span className={`role-badge ${user.role}`}>{getRoleName(user.role)}</span></p>
           </div>
         </div>
         
@@ -47,8 +59,19 @@ const Dashboard = () => {
           <div className="action-buttons">
             <button>Edit Profile</button>
             <button>Change Password</button>
+            {isAdmin() && <button className="admin-button" onClick={goToAdminPanel}>Admin Panel</button>}
           </div>
         </div>
+        
+        {isAdmin() && (
+          <div className="admin-section">
+            <h3>Admin Actions</h3>
+            <div className="action-buttons">
+              <button onClick={goToAdminPanel}>Manage Users</button>
+              <button>View System Logs</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

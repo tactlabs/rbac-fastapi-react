@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import './Navbar.css';
 
 const Navbar = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -21,6 +21,9 @@ const Navbar = () => {
         {isAuthenticated ? (
           <>
             <Link to="/dashboard" className="navbar-item">Dashboard</Link>
+            {isAdmin() && (
+              <Link to="/admin/users" className="navbar-item admin-link">Admin Panel</Link>
+            )}
             <button onClick={handleLogout} className="navbar-item logout-button">
               Logout
             </button>

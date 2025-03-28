@@ -52,12 +52,33 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Add role checking functions
+  const hasRole = (role) => {
+    return user && user.role === role;
+  };
+
+  const isAdmin = () => {
+    return hasRole('admin');
+  };
+
+  const isEditor = () => {
+    return hasRole('editor');
+  };
+
+  const isViewer = () => {
+    return hasRole('viewer');
+  };
+
   const value = {
     token,
     user,
     loading,
     login,
     logout,
+    hasRole,
+    isAdmin,
+    isEditor,
+    isViewer,
     isAuthenticated: !!token
   };
 

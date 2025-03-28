@@ -92,4 +92,42 @@
 
 .action-buttons button:hover {
   background-color: #0069d9;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: white;
+}
+
+.role-badge.viewer {
+  background-color: #6c757d;
+}
+
+.role-badge.editor {
+  background-color: #17a2b8;
+}
+
+.role-badge.admin {
+  background-color: #dc3545;
+}
+
+.admin-section {
+  background-color: #fff3cd;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+  border-left: 4px solid #ffc107;
+}
+
+.admin-button {
+  background-color: #dc3545;
+}
+
+.admin-button:hover {
+  background-color: #c82333;
 } 

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import json
 import os
 from enum import Enum
+import logging
 
 app = FastAPI()
 
@@ -86,9 +87,19 @@ class TokenData(BaseModel):
     username: Optional[str] = None
 
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 def verify_password(plain_password, hashed_password):
-    print(f"Verifying password for hashed: {hashed_password[:10]}...")
-    return pwd_context.verify(plain_password, hashed_password)
+    logger.info(f"Verifying password for authentication attempt")
+    try:
+        result = pwd_context.verify(plain_password, hashed_password)
+        logger.info(f"Password verification result: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error verifying password: {str(e)}")
+        return False
 
 def get_user(username: str) -> Optional[Dict]:
     if username in users_db:
@@ -97,17 +108,21 @@ def get_user(username: str) -> Optional[Dict]:
     print(f"User not found: {username}")
     return None
 
-def authenticate_user(username: str, password: str) -> Optional[Dict]:
-    print(f"Authentication attempt for: {username}")
-    print(f"Available users: {list(users_db.keys())}")
-    user = get_user(username)
+def authenticate_user(username: str, password: str):
+    logger.info(f"Authentication attempt for user: {username}")
+    logger.info(f"Available users: {list(users_db.keys())}")
+    
+    user = users_db.get(username)
     if not user:
-        print(f"No user record found for {username}")
+        logger.warning(f"User '{username}' not found in database")
         return None
+    
+    logger.info(f"User found, attempting password verification")
     if not verify_password(password, user["hashed_password"]):
-        print(f"Password verification failed for {username}")
+        logger.warning(f"Password verification failed for user: {username}")
         return None
-    print(f"Authentication successful for {username}")
+    
+    logger.info(f"Authentication successful for user: {username}")
     return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -294,3 +309,56 @@ async def register_first_admin(user: UserCreate):
         full_name=user.full_name,
         role=user_data["role"]
     )
+
+@app.get("/users", response_model=List[UserResponse])
+async def get_all_users(admin: dict = Depends(verify_admin)):
+    """Get all users - admin only endpoint"""
+    users_list = []
+    for username, user_data in users_db.items():
+        users_list.append(
+            UserResponse(
+                username=user_data["username"],
+                email=user_data["email"],
+                full_name=user_data["full_name"],
+                role=user_data["role"]
+            )
+        )
+    return users_list
+
+@app.post("/admin/reset-password")
+async def reset_admin_password(password: str = "admin123"):  # Default password for testing
+    """Emergency endpoint to reset admin password - remove in production"""
+    if "admin" not in users_db:
+        raise HTTPException(
+            status_code=404, 
+            detail="Admin user not found"
+        )
+    
+    # Generate a new hash using current bcrypt context
+    new_hash = pwd_context.hash(password)
+    logger.info(f"Generated new hash for admin password")
+    
+    # Update the admin user
+    users_db["admin"]["hashed_password"] = new_hash
+    save_users_to_file()
+    
+    return {"message": "Admin password reset successfully"}
+
+@app.post("/admin/recreate")
+async def recreate_admin():
+    """Emergency endpoint to recreate admin user - remove in production"""
+    password = "admin123"  # Default password
+    hashed_password = pwd_context.hash(password)
+    
+    users_db["admin"] = {
+        "username": "admin",
+        "email": "admin@example.com",
+        "full_name": "Admin User",
+        "hashed_password": hashed_password,
+        "role": "admin"
+    }
+    
+    save_users_to_file()
+    logger.info(f"Admin user recreated with password: {password}")
+    
+    return {"message": "Admin user recreated successfully"}
