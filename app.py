@@ -6,6 +6,8 @@ from typing import Optional, Dict
 from passlib.context import CryptContext
 import jwt
 from datetime import datetime, timedelta
+import json
+import os
 
 app = FastAPI()
 
@@ -29,8 +31,25 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # OAuth2 setup
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-# User database (in-memory for demonstration)
+# User database with file persistence
+USERS_FILE = "users_db.json"
+
+# Initialize empty users_db
 users_db = {}
+
+# Load existing users if file exists
+if os.path.exists(USERS_FILE):
+    try:
+        with open(USERS_FILE, "r") as f:
+            users_db = json.load(f)
+    except json.JSONDecodeError:
+        # If the file is corrupted, start with empty database
+        users_db = {}
+
+# Function to save users to file
+def save_users_to_file():
+    with open(USERS_FILE, "w") as f:
+        json.dump(users_db, f)
 
 class UserCreate(BaseModel):
     username: str
@@ -116,6 +135,8 @@ async def register_user(user: UserCreate):
     
     # Store user in database
     users_db[user.username] = user_data
+    # Save to file
+    save_users_to_file()
     
     # Return user data (excluding password)
     return UserResponse(
