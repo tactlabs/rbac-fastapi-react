@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user from token on initial render
+
   useEffect(() => {
     const fetchUser = async () => {
       if (token) {
@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
             const userData = await response.json();
             setUser(userData);
           } else {
-            // If token is invalid, clear everything
+
             logout();
           }
         } catch (error) {

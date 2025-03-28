@@ -17,12 +17,12 @@ const Login = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // If user is already logged in, redirect to dashboard
+
     if (isAuthenticated) {
       navigate('/dashboard');
     }
     
-    // Check for messages from other components (like registration)
+
     if (location.state?.message) {
       setMessage(location.state.message);
     }
@@ -40,7 +40,7 @@ const Login = () => {
     setMessage('');
 
     try {
-      // For OAuth2 password flow, we need to send as form data
+
       const params = new URLSearchParams();
       params.append('username', formData.username);
       params.append('password', formData.password);
@@ -51,7 +51,7 @@ const Login = () => {
         }
       });
 
-      // Get user info with the token
+
       const userResponse = await axios.get('http://localhost:8000/users/me', {
         headers: {
           'Authorization': `Bearer ${response.data.access_token}`

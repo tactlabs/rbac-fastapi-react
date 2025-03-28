@@ -1,1 +1,1 @@
-{"admin": {"username": "admin", "email": "admin@example.com", "full_name": "Admin User", "hashed_password": "$2b$12$vUjLEgBzglZBrBiiwor/M.ekiOMnH7.WLb0HyrbLaIZ74jFMDGadO", "role": "admin"}}
+{"admin": {"username": "admin", "email": "admin@example.com", "full_name": "Admin User", "hashed_password": "$2b$12$vUjLEgBzglZBrBiiwor/M.ekiOMnH7.WLb0HyrbLaIZ74jFMDGadO", "role": "admin"}, "Soundarya": {"username": "Soundarya", "email": "soundarya@gmail.com", "full_name": "", "hashed_password": "$2b$12$E99BhweJqWkJFR6vmg4/l.V2AunlFPLMt7wJ.mllnu5T5eWv.zEwK", "role": "viewer"}}

@@ -7,7 +7,7 @@ import Navbar from './components/Navbar';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import './App.css';
 
-// Protected route component
+
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuth();
   
