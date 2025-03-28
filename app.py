@@ -2,12 +2,13 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from passlib.context import CryptContext
 import jwt
 from datetime import datetime, timedelta
 import json
 import os
+from enum import Enum
 
 app = FastAPI()
 
@@ -56,16 +57,26 @@ def save_users_to_file():
         json.dump(users_db, f)
     print(f"Saved {len(users_db)} users to {USERS_FILE}")
 
+# Add Role enum
+class Role(str, Enum):
+    VIEWER = "viewer"
+    EDITOR = "editor"
+    ADMIN = "admin"
+
+# Modify UserCreate model
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
     password: str
     full_name: Optional[str] = None
+    role: Role = Role.VIEWER  # Default role is viewer
 
+# Modify UserResponse model
 class UserResponse(BaseModel):
     username: str
     email: EmailStr
     full_name: Optional[str] = None
+    role: Role
 
 class Token(BaseModel):
     access_token: str
@@ -145,6 +156,16 @@ async def debug_get_user(username: str):
         del safe_user["hashed_password"]
     return {"exists": True, "user": safe_user}
 
+# Add role verification dependency
+async def verify_admin(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != Role.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can perform this action"
+        )
+    return current_user
+
+# Modify register_user function to include role
 @app.post("/register", response_model=UserResponse)
 async def register_user(user: UserCreate):
     print(f"Registration attempt for: {user.username}")
@@ -160,12 +181,12 @@ async def register_user(user: UserCreate):
     hashed_password = pwd_context.hash(user.password)
     print(f"Password hashed for {user.username}: {hashed_password[:10]}...")
     
-    # Create user dict (excluding password from response)
     user_data = {
         "username": user.username,
         "email": user.email,
         "full_name": user.full_name,
-        "hashed_password": hashed_password
+        "hashed_password": hashed_password,
+        "role": Role.VIEWER  # New users always start as viewers
     }
     
     # Store user in database
@@ -174,11 +195,11 @@ async def register_user(user: UserCreate):
     # Save to file
     save_users_to_file()
     
-    # Return user data (excluding password)
     return UserResponse(
         username=user.username,
         email=user.email,
-        full_name=user.full_name
+        full_name=user.full_name,
+        role=user_data["role"]
     )
 
 @app.post("/login", response_model=Token)
@@ -202,10 +223,38 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     
     return {"access_token": access_token, "token_type": "bearer"}
 
+# Add new endpoint for updating user roles
+class UpdateUserRole(BaseModel):
+    username: str
+    new_role: Role
+
+@app.put("/users/{username}/role", response_model=UserResponse)
+async def update_user_role(
+    username: str,
+    role_update: UpdateUserRole,
+    admin: dict = Depends(verify_admin)
+):
+    if username not in users_db:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    users_db[username]["role"] = role_update.new_role
+    save_users_to_file()
+    
+    return UserResponse(
+        username=users_db[username]["username"],
+        email=users_db[username]["email"],
+        full_name=users_db[username]["full_name"],
+        role=users_db[username]["role"]
+    )
+
 @app.get("/users/me", response_model=UserResponse)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     return UserResponse(
         username=current_user["username"],
         email=current_user["email"],
-        full_name=current_user["full_name"]
+        full_name=current_user["full_name"],
+        role=current_user["role"]
     )
