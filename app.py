@@ -42,14 +42,19 @@ if os.path.exists(USERS_FILE):
     try:
         with open(USERS_FILE, "r") as f:
             users_db = json.load(f)
+        print(f"Loaded {len(users_db)} users from {USERS_FILE}")
     except json.JSONDecodeError:
         # If the file is corrupted, start with empty database
         users_db = {}
+        print(f"Error loading users from {USERS_FILE}, starting with empty database")
+else:
+    print(f"No users file found at {USERS_FILE}, starting with empty database")
 
 # Function to save users to file
 def save_users_to_file():
     with open(USERS_FILE, "w") as f:
         json.dump(users_db, f)
+    print(f"Saved {len(users_db)} users to {USERS_FILE}")
 
 class UserCreate(BaseModel):
     username: str
@@ -71,19 +76,27 @@ class TokenData(BaseModel):
 
 # Helper functions
 def verify_password(plain_password, hashed_password):
+    print(f"Verifying password for hashed: {hashed_password[:10]}...")
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_user(username: str) -> Optional[Dict]:
     if username in users_db:
+        print(f"User found: {username}")
         return users_db[username]
+    print(f"User not found: {username}")
     return None
 
 def authenticate_user(username: str, password: str) -> Optional[Dict]:
+    print(f"Authentication attempt for: {username}")
+    print(f"Available users: {list(users_db.keys())}")
     user = get_user(username)
     if not user:
+        print(f"No user record found for {username}")
         return None
     if not verify_password(password, user["hashed_password"]):
+        print(f"Password verification failed for {username}")
         return None
+    print(f"Authentication successful for {username}")
     return user
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -113,10 +126,31 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return user
 
+# Debug endpoint to check what users are in the database
+@app.get("/debug/users")
+async def debug_get_users():
+    return {"user_count": len(users_db), "usernames": list(users_db.keys())}
+
+# Debug endpoint to check a specific user
+@app.get("/debug/user/{username}")
+async def debug_get_user(username: str):
+    user = get_user(username)
+    if not user:
+        return {"exists": False}
+    # Return user info but don't expose the full hashed password
+    safe_user = {**user}
+    if "hashed_password" in safe_user:
+        password_preview = safe_user["hashed_password"][:10] + "..." if safe_user["hashed_password"] else None
+        safe_user["hashed_password_preview"] = password_preview
+        del safe_user["hashed_password"]
+    return {"exists": True, "user": safe_user}
+
 @app.post("/register", response_model=UserResponse)
 async def register_user(user: UserCreate):
+    print(f"Registration attempt for: {user.username}")
     # Check if username already exists
     if user.username in users_db:
+        print(f"Username already exists: {user.username}")
         raise HTTPException(
             status_code=400,
             detail="Username already registered"
@@ -124,6 +158,7 @@ async def register_user(user: UserCreate):
     
     # Hash the password
     hashed_password = pwd_context.hash(user.password)
+    print(f"Password hashed for {user.username}: {hashed_password[:10]}...")
     
     # Create user dict (excluding password from response)
     user_data = {
@@ -135,6 +170,7 @@ async def register_user(user: UserCreate):
     
     # Store user in database
     users_db[user.username] = user_data
+    print(f"Added user to database: {user.username}")
     # Save to file
     save_users_to_file()
     
@@ -147,8 +183,10 @@ async def register_user(user: UserCreate):
 
 @app.post("/login", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    print(f"Login attempt for: {form_data.username}")
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
+        print(f"Authentication failed for: {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -160,6 +198,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         data={"sub": user["username"]}, 
         expires_delta=access_token_expires
     )
+    print(f"Generated token for: {form_data.username}")
     
     return {"access_token": access_token, "token_type": "bearer"}
 
